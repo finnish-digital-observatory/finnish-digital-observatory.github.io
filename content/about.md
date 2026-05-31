@@ -4,14 +4,18 @@ title: About
 permalink: /about/
 ---
 
-# About
+## People
 
-The Finnish Digital Observatory is a research infrastructure based in Finland, dedicated to the study of digital society, online communities, and data-driven social research.
-
-## Mission
-
-We build open, sustainable infrastructure that enables researchers to access, study, and understand Finnish digital spaces — ethically and rigorously.
-
-## Contact
-
-For inquiries, reach us at [matti.nelimarkka@helsinki.fi](mailto:matti.nelimarkka@helsinki.fi).
+<div class="row row-cols-2 row-cols-md-4 g-4 my-2">
+{% for person in site.data.people %}
+  <div class="col text-center">
+    <a href="{{ person.profile }}" target="_blank" rel="noopener">
+      <img src="{{ person.picture }}" alt="{{ person.name }}"
+           class="rounded-circle mb-2" width="96" height="96"
+           style="object-fit: cover;">
+    </a>
+    <div class="fw-semibold"><a href="{{ person.profile }}" target="_blank" rel="noopener" class="text-decoration-none text-dark">{{ person.name }}</a></div>
+    <div class="text-muted small">{{ person.affiliation }}</div>
+  </div>
+{% endfor %}
+</div>
