@@ -48,50 +48,53 @@
       <ul class="navbar-nav ms-auto">
 
         {%- comment -%}
-          Collect all pages from the content folder that have nav_order set,
-          sorted by nav_order. Pages with a single permalink segment (e.g. /about/)
-          become top-level nav items. Pages with two segments (e.g. /projects/data-donation/)
-          become dropdown children under their parent section.
-        {%- endcomment -%}
-
-        {%- comment -%}
-          all_nav: pages in content/ with nav_order, excluding child pages (which have nav_parent set).
-          Children declare their parent via nav_parent: /section/ in front matter.
-          We use `where: "nav_parent", p.permalink` to find children — this is reliable
-          in Jekyll Liquid, unlike where_exp referencing outer-loop variables.
+          Collect all pages from content/, sorted by nav_order (optional) then title.
+          Hierarchy is inferred from permalink depth:
+            size 2 → "/" (home)
+            size 3 → "/section/" (top-level)
+            size 4 → "/section/page/" (dropdown child)
+          No nav_order or nav_parent front matter required.
         {%- endcomment -%}
 
         {%- assign all_nav = site.pages
               | where_exp: "p", "p.path contains 'content/'"
-              | where_exp: "p", "p.nav_order"
+              | where_exp: "p", "p.permalink"
+              | sort: "title"
               | sort: "nav_order" -%}
 
-        {%- assign top_nav = all_nav | where_exp: "p", "p.nav_parent == nil or p.nav_parent == blank" -%}
+        {%- for p in all_nav -%}
+          {%- assign segs = p.permalink | split: "/" -%}
 
-        {%- for p in top_nav -%}
-          {%- assign children = all_nav | where: "nav_parent", p.permalink -%}
+          {%- if segs.size == 2 or segs.size == 3 -%}
+            {%- comment -%}
+              Use capture to materialise p.permalink before passing to where_exp,
+              so the outer-loop variable is reliably accessible inside the filter.
+            {%- endcomment -%}
+            {%- capture parent_url %}{{ p.permalink }}{% endcapture -%}
+            {%- assign children = all_nav | where_exp: "c", "c.permalink contains parent_url and c.permalink != parent_url" -%}
 
-          {%- if children.size > 0 -%}
-            <li class="nav-item dropdown">
-              <a class="nav-link dropdown-toggle{% if page.url contains p.permalink %} active{% endif %}"
-                 href="{{ p.permalink }}" role="button" data-bs-toggle="dropdown">
-                {{ p.title }}
-              </a>
-              <ul class="dropdown-menu dropdown-menu-dark">
-                <li><a class="dropdown-item" href="{{ p.permalink }}">All {{ p.title }}</a></li>
-                <li><hr class="dropdown-divider"></li>
-                {%- for child in children -%}
-                  <li>
-                    <a class="dropdown-item{% if page.url == child.permalink %} active{% endif %}"
-                       href="{{ child.permalink }}">{{ child.title }}</a>
-                  </li>
-                {%- endfor -%}
-              </ul>
-            </li>
-          {%- else -%}
-            <li class="nav-item">
-              <a class="nav-link{% if page.url == p.permalink %} active{% endif %}" href="{{ p.permalink }}">{{ p.title }}</a>
-            </li>
+            {%- if children.size > 0 -%}
+              <li class="nav-item dropdown">
+                <a class="nav-link dropdown-toggle{% if page.url contains p.permalink %} active{% endif %}"
+                   href="{{ p.permalink }}" role="button" data-bs-toggle="dropdown">
+                  {{ p.title }}
+                </a>
+                <ul class="dropdown-menu dropdown-menu-dark">
+                  <li><a class="dropdown-item" href="{{ p.permalink }}">All {{ p.title }}</a></li>
+                  <li><hr class="dropdown-divider"></li>
+                  {%- for child in children -%}
+                    <li>
+                      <a class="dropdown-item{% if page.url == child.permalink %} active{% endif %}"
+                         href="{{ child.permalink }}">{{ child.title }}</a>
+                    </li>
+                  {%- endfor -%}
+                </ul>
+              </li>
+            {%- else -%}
+              <li class="nav-item">
+                <a class="nav-link{% if page.url == p.permalink %} active{% endif %}" href="{{ p.permalink }}">{{ p.title }}</a>
+              </li>
+            {%- endif -%}
           {%- endif -%}
         {%- endfor -%}
 

@@ -2,8 +2,6 @@
 layout: default
 title: Finnish Online Forums
 permalink: /code/finnish-online-forums/
-nav_order: 31
-nav_parent: /code/
 ---
 
 # Finnish Online Forums

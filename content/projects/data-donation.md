@@ -2,8 +2,6 @@
 layout: default
 title: Data Donation
 permalink: /projects/data-donation/
-nav_order: 21
-nav_parent: /projects/
 ---
 
 # Data Donation
