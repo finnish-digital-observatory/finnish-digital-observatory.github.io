@@ -1,0 +1,19 @@
+title: Finnish Digital Observatory
+description: Research infrastructure for studying Finnish digital society
+baseurl: ""
+url: "https://finnish-digital-observatory.github.io"
+
+markdown: kramdown
+permalink: pretty
+
+plugins:
+  - jekyll-feed
+  - jekyll-seo-tag
+  - jekyll-sitemap
+
+exclude:
+  - Gemfile
+  - Gemfile.lock
+  - README.md
+  - .gitignore
+  - vendor/
