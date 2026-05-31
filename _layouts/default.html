@@ -48,54 +48,98 @@
       <ul class="navbar-nav ms-auto">
 
         {%- comment -%}
-          Collect all pages from content/, sorted by nav_order (optional) then title.
-          Hierarchy is inferred from permalink depth:
-            size 2 → "/" (home)
-            size 3 → "/section/" (top-level)
-            size 4 → "/section/page/" (dropdown child)
-          No nav_order or nav_parent front matter required.
+          Hierarchy is inferred purely from permalink depth using nested for loops —
+          no where_exp with outer-loop variables, which is unreliable in Jekyll Liquid.
+
+          Liquid split keeps trailing empty strings, so:
+            "/"                      → ["",""]          → size 2  (home)
+            "/about/"                → ["","about",""]  → size 3  (top-level)
+            "/projects/data-don.../" → size 4           (child, skip in outer loop)
+        {%- endcomment -%}
+
+        {%- comment -%}
+          Nav is built from the file path (p.path), not the URL — paths are always
+          reliable. Pages directly in content/ become top-level items; pages inside
+          a content/subfolder/ become dropdown children under that folder.
         {%- endcomment -%}
 
         {%- assign all_nav = site.pages
               | where_exp: "p", "p.path contains 'content/'"
-              | where_exp: "p", "p.permalink"
-              | sort: "title"
-              | sort: "nav_order" -%}
+              | sort: "title" -%}
 
+        {%- comment -%} ── Top-level pages (content/page.md, no subfolder) ── {%- endcomment -%}
+        {%- assign top_pages = "" | split: "" -%}
         {%- for p in all_nav -%}
-          {%- assign segs = p.permalink | split: "/" -%}
+          {%- assign rel = p.path | remove_first: "content/" -%}
+          {%- unless rel contains "/" -%}
+            {%- assign top_pages = top_pages | push: p -%}
+          {%- endunless -%}
+        {%- endfor -%}
 
-          {%- if segs.size == 2 or segs.size == 3 -%}
-            {%- comment -%}
-              Use capture to materialise p.permalink before passing to where_exp,
-              so the outer-loop variable is reliably accessible inside the filter.
-            {%- endcomment -%}
-            {%- capture parent_url %}{{ p.permalink }}{% endcapture -%}
-            {%- assign children = all_nav | where_exp: "c", "c.permalink contains parent_url and c.permalink != parent_url" -%}
-
-            {%- if children.size > 0 -%}
-              <li class="nav-item dropdown">
-                <a class="nav-link dropdown-toggle{% if page.url contains p.permalink %} active{% endif %}"
-                   href="{{ p.permalink }}" role="button" data-bs-toggle="dropdown">
-                  {{ p.title }}
-                </a>
-                <ul class="dropdown-menu dropdown-menu-dark">
-                  <li><a class="dropdown-item" href="{{ p.permalink }}">All {{ p.title }}</a></li>
-                  <li><hr class="dropdown-divider"></li>
-                  {%- for child in children -%}
-                    <li>
-                      <a class="dropdown-item{% if page.url == child.permalink %} active{% endif %}"
-                         href="{{ child.permalink }}">{{ child.title }}</a>
-                    </li>
-                  {%- endfor -%}
-                </ul>
-              </li>
-            {%- else -%}
-              <li class="nav-item">
-                <a class="nav-link{% if page.url == p.permalink %} active{% endif %}" href="{{ p.permalink }}">{{ p.title }}</a>
-              </li>
-            {%- endif -%}
+        {%- comment -%} ── Unique subfolders (content/folder/…) ── {%- endcomment -%}
+        {%- assign folders_raw = "" | split: "" -%}
+        {%- for p in all_nav -%}
+          {%- assign rel = p.path | remove_first: "content/" -%}
+          {%- if rel contains "/" -%}
+            {%- assign folder = rel | split: "/" | first -%}
+            {%- assign folders_raw = folders_raw | push: folder -%}
           {%- endif -%}
+        {%- endfor -%}
+        {%- assign folders = folders_raw | uniq | sort -%}
+
+        {%- comment -%} ── Render top-level items ── {%- endcomment -%}
+        {%- for p in top_pages -%}
+          <li class="nav-item">
+            <a class="nav-link{% if page.url == p.url %} active{% endif %}"
+               href="{{ p.url }}">{{ p.title }}</a>
+          </li>
+        {%- endfor -%}
+
+        {%- comment -%} ── Render one dropdown per subfolder ── {%- endcomment -%}
+        {%- for folder in folders -%}
+          {%- assign folder_items = "" | split: "" -%}
+          {%- assign index_items  = "" | split: "" -%}
+          {%- for p in all_nav -%}
+            {%- assign rel = p.path | remove_first: "content/" -%}
+            {%- if rel contains "/" -%}
+              {%- assign p_folder = rel | split: "/" | first -%}
+              {%- if p_folder == folder -%}
+                {%- assign filename = rel | split: "/" | last -%}
+                {%- if filename == "index.md" -%}
+                  {%- assign index_items = index_items | push: p -%}
+                {%- else -%}
+                  {%- assign folder_items = folder_items | push: p -%}
+                {%- endif -%}
+              {%- endif -%}
+            {%- endif -%}
+          {%- endfor -%}
+
+          {%- comment -%} Use the section index page title/url if it exists {%- endcomment -%}
+          {%- assign folder_label = folder | capitalize -%}
+          {%- assign folder_href  = "/" | append: folder | append: "/" -%}
+          {%- for idx in index_items limit: 1 -%}
+            {%- assign folder_label = idx.title -%}
+            {%- assign folder_href  = idx.url -%}
+          {%- endfor -%}
+
+          <li class="nav-item dropdown">
+            <a class="nav-link dropdown-toggle{% if page.url contains folder_href %} active{% endif %}"
+               href="{{ folder_href }}" role="button" data-bs-toggle="dropdown">
+              {{ folder_label }}
+            </a>
+            <ul class="dropdown-menu dropdown-menu-dark">
+              <li><a class="dropdown-item" href="{{ folder_href }}">All {{ folder_label }}</a></li>
+              {%- if folder_items.size > 0 -%}
+                <li><hr class="dropdown-divider"></li>
+                {%- for item in folder_items -%}
+                  <li>
+                    <a class="dropdown-item{% if page.url == item.url %} active{% endif %}"
+                       href="{{ item.url }}">{{ item.title }}</a>
+                  </li>
+                {%- endfor -%}
+              {%- endif -%}
+            </ul>
+          </li>
         {%- endfor -%}
 
       </ul>
